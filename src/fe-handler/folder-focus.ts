@@ -54,12 +54,18 @@ export default class FolderFocus extends FEHandler_Base {
       // @ts-ignore
       this.plugin.app.nextFrame(() => {
         // @ts-ignore
-        this.fileExplorer.dom.infinityScroll.computeSync();
-        // @ts-ignore
-        this.fileExplorer.dom.infinityScroll.scrollIntoView(item);
+        const scroller =
+          (this.fileExplorer as any).tree?.infinityScroll ??
+          (this.fileExplorer as any).dom?.infinityScroll;
+        scroller?.computeSync?.();
+        scroller?.scrollIntoView?.(item);
       });
     }
-    this.fileExplorer.dom.navFileContainerEl.toggleClass(focusModeCls, !!item);
+    const navEl =
+      (this.fileExplorer as any).navFileContainerEl ??
+      (this.fileExplorer as any).dom?.navFileContainerEl ??
+      (this.fileExplorer as any).tree?.navFileContainerEl;
+    navEl?.toggleClass?.(focusModeCls, !!item);
   }
   toggleFocusFolder(folder: TFolder | null) {
     const folderItem = folder

@@ -52,9 +52,12 @@ const PatchFileExplorer = (plugin: ALxFolderNote) => {
   const FileExplorerView = FileExplorerViewInst.constructor as typeof FEViewCls,
     FileExplorerPlugin =
       FileExplorerPluginInst.constructor as typeof FEPluginCls,
-    FolderItem = FileExplorerViewInst.createFolderDom(
-      plugin.app.vault.getRoot(),
-    ).constructor as typeof FolderItemCls;
+    rootFolderDom =
+      FileExplorerViewInst.createFolderDom?.(plugin.app.vault.getRoot()) ??
+      (FileExplorerViewInst as any).tree?.createItemDom?.(plugin.app.vault.getRoot()) ??
+      (FileExplorerViewInst as any).createItemDom?.(plugin.app.vault.getRoot()) ??
+      Object.values((FileExplorerViewInst as any).fileItems || {})[0],
+    FolderItem = (rootFolderDom?.constructor || Object) as typeof FolderItemCls;
 
   FileExplorerViewInst = null;
 
@@ -65,7 +68,13 @@ const PatchFileExplorer = (plugin: ALxFolderNote) => {
           const self = this;
           next.call(self);
           self.folderNoteUtils = getFileExplorerHandlers(plugin, self);
-          AddLongPressEvt(plugin, self.dom.navFileContainerEl);
+          const navContainer =
+            (self as any).navFileContainerEl ??
+            (self as any).dom?.navFileContainerEl ??
+            (self as any).tree?.navFileContainerEl;
+          if (navContainer) {
+            AddLongPressEvt(plugin, navContainer);
+          }
           self.containerEl.on(
             "auxclick",
             ".nav-folder",
@@ -126,20 +135,24 @@ const PatchFileExplorer = (plugin: ALxFolderNote) => {
           return next.call(this, file);
         },
     }),
-    around(FolderItem.prototype, {
-      onTitleElClick: (next) =>
-        async function (this: FolderItemCls, evt) {
-          // if folder note click not success,
-          // fallback to default
-          if (!(await clickHandler(this, evt))) next.call(this, evt);
-        },
-      onSelfClick: (next) =>
-        async function (this: FolderItemCls, evt) {
-          // if folder note click not success,
-          // fallback to default
-          if (!(await clickHandler(this, evt))) next.call(this, evt);
-        },
-    }),
+    ...(FolderItem && FolderItem.prototype
+      ? [
+          around(FolderItem.prototype, {
+            onTitleElClick: (next) =>
+              async function (this: FolderItemCls, evt) {
+                // if folder note click not success,
+                // fallback to default
+                if (!(await clickHandler(this, evt))) next.call(this, evt);
+              },
+            onSelfClick: (next) =>
+              async function (this: FolderItemCls, evt) {
+                // if folder note click not success,
+                // fallback to default
+                if (!(await clickHandler(this, evt))) next.call(this, evt);
+              },
+          }),
+        ]
+      : []),
   ];
   resetFileExplorer(plugin);
   plugin.register(() => {
